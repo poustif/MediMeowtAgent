@@ -1,2 +1,11 @@
 # MediMeowtAgent
-🐾 Welcome! This is an LLM agent-based pre-diagnosis system, a project by Group SE of the 2025 Software Engineering class (L) at Fuzhou University. Our goal is to create a smart assistant, powered by Vue3 + FastAPI + MariaDB, to streamline routine inquiries for doctors and bring more warmth and intelligence to healthcare. ฅ́˘ฅ̀
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Vue.js-3-4FC08D?logo=vuedotjs" alt="Vue.js">
+  <img src="https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi" alt="FastAPI">
+  <img src="https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch" alt="PyTorch">
+  <img src="https://img.shields.io/badge/MariaDB-10.6+-003545?logo=mariadb" alt="MariaDB">
+</p>
+
+### Contributors
+
