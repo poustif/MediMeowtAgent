@@ -32,4 +32,4 @@
 | <img src="https://github.com/nnieie.png?size=80" width="80" height="80" alt="nnieie"> | [nnieie](https://github.com/nnieie) |
 | <img src="https://github.com/SuperBriefs.png?size=80" width="80" height="80" alt="SuperBriefs"> | [SuperBriefs](https://github.com/SuperBriefs) |
 | <img src="https://github.com/yequdesu.png?size=80" width="80" height="80" alt="yequdesu"> | [yequdesu](https://github.com/yequdesu) |
-| <img src="https://github.com/hjiang123.png?size=80" width="80" height="80" alt="hjiang436-hue"> | [hjiang123](https://github.com/hjiang123) |
+| <img src="https://github.com/hjiang123.png?size=80" width="80" height="80" alt="hjiang436-hue"> | [hjiang436-hue](https://github.com/hjiang436-hue) |
