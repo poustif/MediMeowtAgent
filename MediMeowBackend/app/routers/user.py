@@ -96,21 +96,17 @@ async def login(
         data={"sub": user.id, "type": "user"}
     )
     
-    # 返回用户信息
-    user_info = {
-        "id": user.id,
-        "phone_number": user.phone_number,
-        "username": user.username,
-        "created_at": user.created_at.isoformat() if user.created_at else None,
-        "updated_at": user.updated_at.isoformat() if user.updated_at else None,
-        "deleted_at": user.deleted_at.isoformat() if user.deleted_at else None
-    }
-    
+    # 返回用户信息（按 API 文档格式，token 放在 header 或单独字段）
     return success_response(
         msg="登录成功",
         data={
             "token": access_token,
-            "user": user_info
+            "id": user.id,
+            "phone_number": user.phone_number,
+            "username": user.username,
+            "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S") if user.created_at else None,
+            "updated_at": user.updated_at.strftime("%Y-%m-%d %H:%M:%S") if user.updated_at else None,
+            "deleted_at": user.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if user.deleted_at else None
         }
     )
 
@@ -137,9 +133,13 @@ async def get_user_info(
         "id": user.id,
         "phone_number": user.phone_number,
         "username": user.username,
-        "created_at": user.created_at.isoformat() if user.created_at else None,
-        "updated_at": user.updated_at.isoformat() if user.updated_at else None,
-        "deleted_at": user.deleted_at.isoformat() if user.deleted_at else None
+        "gender": user.gender,
+        "birth": user.birth,
+        "ethnicity": user.ethnicity,
+        "origin": user.origin,
+        "created_at": user.created_at.strftime("%Y-%m-%d %H:%M:%S") if user.created_at else None,
+        "updated_at": user.updated_at.strftime("%Y-%m-%d %H:%M:%S") if user.updated_at else None,
+        "deleted_at": user.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if user.deleted_at else None
     }
     
     return success_response(data=user_info)
