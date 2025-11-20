@@ -9,7 +9,7 @@ from app.utils import (
     error_response
 )
 
-router = APIRouter(prefix="/department", tags=["科室模块"])
+router = APIRouter(prefix="/departments", tags=["科室模块"])
 
 
 @router.get("")
@@ -17,22 +17,16 @@ async def get_departments(
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """获取科室列表"""
-    departments = db.query(Department).filter(
-        Department.deleted_at.is_(None)
-    ).all()
-    
-    department_list = []
-    for dept in departments:
-        department_list.append({
-            "department_id": dept.id,
+    """获取所有科室（数组结构）"""
+    departments = db.query(Department).filter(Department.deleted_at.is_(None)).all()
+    data = [
+        {
             "department_name": dept.department_name,
-            "created_at": dept.created_at.isoformat() if dept.created_at else None,
-            "updated_at": dept.updated_at.isoformat() if dept.updated_at else None,
-            "deleted_at": dept.deleted_at.isoformat() if dept.deleted_at else None
-        })
-    
-    return success_response(data={"department": department_list})
+            "department_id": dept.id
+        }
+        for dept in departments
+    ]
+    return success_response(data=data)
 
 
 @router.post("")
