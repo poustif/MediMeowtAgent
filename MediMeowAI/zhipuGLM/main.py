@@ -44,7 +44,7 @@ def run_three_stage_rag(patient_text_data: str, image_path: str, vector_store):
     
     # 2.1 提取关键词
     keyword_prompt = ChatPromptTemplate.from_template(prompts.RAG_RETRIEVAL_PROMPT)
-    keyword_chain = keyword_prompt | llm | itemgetter("content")
+    keyword_chain = keyword_prompt | llm | (lambda x: x.content) # 使用 lambda 访问 .content
     retrieval_keywords = keyword_chain.invoke({"report_fragment": multimodal_description_block})
     print(f"--- 🔑 检索关键词: {retrieval_keywords} ---")
 
@@ -60,7 +60,7 @@ def run_three_stage_rag(patient_text_data: str, image_path: str, vector_store):
     print("\n--- 🧠 阶段 3: 整合信息，生成最终病历... ---")
     
     final_prompt = ChatPromptTemplate.from_template(prompts.FINAL_REPORT_PROMPT)
-    final_chain = final_prompt | llm | itemgetter("content")
+    final_chain = final_prompt | llm | (lambda x: x.content)
     
     final_report = final_chain.invoke({
         "original_text_data": patient_text_data,

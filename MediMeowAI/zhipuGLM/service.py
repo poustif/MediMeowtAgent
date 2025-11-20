@@ -75,7 +75,7 @@ def _stage1_generate_description(llm, patient_text_data: str, image_base64: str)
 
 def _stage2_retrieve_context(llm, multimodal_description_block: str, vector_store: Chroma) -> str:
     keyword_prompt = ChatPromptTemplate.from_template(prompts.RAG_RETRIEVAL_PROMPT)
-    keyword_chain = keyword_prompt | llm | itemgetter("content")
+    keyword_chain = keyword_prompt | llm | (lambda x: x.content)
     retrieval_keywords = keyword_chain.invoke({"report_fragment": multimodal_description_block})
 
     retriever = vector_store.as_retriever(search_kwargs={"k": 5})
@@ -85,7 +85,7 @@ def _stage2_retrieve_context(llm, multimodal_description_block: str, vector_stor
 
 def _stage3_sync_generate_final_report(llm, patient_text_data: str, multimodal_description_block: str, retrieved_context: str) -> str:
     final_prompt = ChatPromptTemplate.from_template(prompts.FINAL_REPORT_PROMPT)
-    final_chain = final_prompt | llm | itemgetter("content")
+    final_chain = final_prompt | llm | (lambda x: x.content)
     final_report = final_chain.invoke({
         "original_text_data": patient_text_data,
         "multimodal_description": multimodal_description_block, 

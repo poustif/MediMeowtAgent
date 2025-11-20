@@ -8,7 +8,7 @@ import os
 
 # GLM-4.1V-Thinking-Flash 配置
 os.environ["GLM_API_KEY"] = ""
-GLM_API_BASE = "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+GLM_API_BASE = "https://open.bigmodel.cn/api/paas/v4/"
 
 # --- 词嵌入模型配置 ---
 BGE_EMBEDDING_MODEL_NAME = "BAAI/bge-small-zh"
