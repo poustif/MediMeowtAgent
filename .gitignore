@@ -208,3 +208,4 @@ Thumbs.db
 # AI generated files
 MediMeowAI/zhipuGLM/pic
 MediMeowAI/zhipuGLM/config/config.yaml
+MediMeowAI/zhipuGLM/chroma_db_medical
