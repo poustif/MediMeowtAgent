@@ -1,9 +1,9 @@
 import os
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
-import MediMeowAI.zhipuGLM.config as config
-import MediMeowAI.zhipuGLM.utils.utils as utils
+import config.config as config
+import utils.utils as utils
 
 def build_or_load_rag_index():
     """加载或从文档构建向量数据库"""
@@ -36,7 +36,7 @@ def build_or_load_rag_index():
     # 存入 Chroma
     vectorstore = Chroma.from_documents(
         documents=chunks, 
-        embedding=qwen_embeddings, 
+        embedding=bge_embeddings, 
         persist_directory=config.CHROMA_PERSIST_DIR
     )
     print(f"--- 💖 数据库构建完成！文档块数量: {len(chunks)} ---")

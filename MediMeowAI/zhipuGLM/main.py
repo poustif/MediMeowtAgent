@@ -3,14 +3,15 @@ from typing import List
 from operator import itemgetter
 
 # LangChain Imports
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema import HumanMessage, SystemMessage, Document
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.documents import Document
 
 # 模块导入
-import MediMeowAI.zhipuGLM.config as config
-import MediMeowAI.zhipuGLM.prompts.prompts as prompts
-import MediMeowAI.zhipuGLM.utils.utils as utils
-import MediMeowAI.zhipuGLM.rag.rag_core as rag_core
+import config.config as config
+import prompts.prompts as prompts
+import utils.utils as utils
+import rag.rag_core as rag_core
 
 def run_three_stage_rag(patient_text_data: str, image_path: str, vector_store):
     """

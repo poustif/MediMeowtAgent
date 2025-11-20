@@ -4,8 +4,9 @@ from typing import List, Generator, Union, Optional
 from operator import itemgetter
 
 from zhipuai import ZhipuAI
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema import HumanMessage, SystemMessage, Document
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.documents import Document
 from langchain_community.vectorstores import Chroma
 # 导入底层依赖模块
 import MediMeowAI.zhipuGLM.config as config
