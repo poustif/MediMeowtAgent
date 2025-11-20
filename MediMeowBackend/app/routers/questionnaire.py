@@ -318,45 +318,38 @@ async def get_questionnaire(
     )
 
 
+
+from fastapi import Body
+from pydantic import BaseModel
+class QuestionnaireSubmitRequest(BaseModel):
+    questionnaire_id: str
+    department_id: str
+    answers: dict
+    file_id: Optional[List[str]] = None
+
 @router.post("/submit")
 async def submit_questionnaire(
-    questionnaire_data: str = Form(...),
-    file_id: Optional[List[str]] = Form(None),
+    body: QuestionnaireSubmitRequest = Body(...),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """提交问卷"""
-    # 验证用户在数据库中是否存在
+    """提交问卷（JSON参数，file_id为数组）"""
     from app.utils.auth import verify_user_exists
     verify_user_exists(current_user["user_id"], current_user["user_type"], db)
-    
-    # 解析问卷数据
-    try:
-        data = json.loads(questionnaire_data)
-    except json.JSONDecodeError as e:
-        print(f"❌ JSON解析错误: {str(e)}")
-        print(f"接收到的数据: {questionnaire_data}")
-        return error_response(code="10007", msg=f"问卷数据格式错误: {str(e)}")
-    
-    # 打印接收到的数据用于调试
-    print(f"📝 接收到的问卷数据: {data}")
-    
-    questionnaire_id = data.get("questionnaire_id")
-    department_id = data.get("department_id")
-    answers = data.get("answers", {})
-    
+
+    questionnaire_id = body.questionnaire_id
+    department_id = body.department_id
+    answers = body.answers
+    file_id = body.file_id
+
     # 验证必填字段
     if not questionnaire_id:
         return error_response(code="10007", msg="缺少问卷ID (questionnaire_id)")
-    
     if not department_id:
         return error_response(code="10007", msg="缺少科室ID (department_id)")
-    
     if not answers:
         return error_response(code="10007", msg="缺少问卷答案 (answers)")
-    
-    print(f"✅ 验证通过 - 问卷ID: {questionnaire_id}, 科室ID: {department_id}")
-    
+
     # 创建问卷提交记录
     submission = QuestionnaireSubmission(
         user_id=current_user["user_id"],
@@ -366,11 +359,10 @@ async def submit_questionnaire(
         file_ids=file_id,
         status="pending"
     )
-    
     db.add(submission)
     db.commit()
     db.refresh(submission)
-    
+
     # 创建就诊记录
     medical_record = MedicalRecord(
         user_id=current_user["user_id"],
@@ -378,26 +370,26 @@ async def submit_questionnaire(
         department_id=department_id,
         status="waiting"
     )
-    
     db.add(medical_record)
     db.commit()
     db.refresh(medical_record)
-    
+
     # 调用AI服务进行分析
     try:
         ai_result = await AIService.analyze_questionnaire(
             questionnaire_data=answers,
-            file_ids=file_id
+            file_ids=file_id,
+            department_id=department_id,
+            db=db
         )
-        
-        # 更新问卷提交记录的AI结果
-        submission.ai_result = ai_result
+        # 保存 key_info 部分（符合数据库结构）
+        submission.ai_result = ai_result.get("key_info", ai_result)
         submission.status = "completed"
         db.commit()
     except Exception as e:
         print(f"AI分析失败: {str(e)}")
-        # 即使AI分析失败，也不影响提交
-    
+        # AI 失败不影响提交
+
     return success_response(
         msg="提交成功",
         data={"record_id": medical_record.id}

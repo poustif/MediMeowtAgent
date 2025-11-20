@@ -25,9 +25,6 @@ class AIService:
         Returns:
             AI分析结果
         """
-        # 模拟AI分析延迟
-        import asyncio
-        await asyncio.sleep(0.5)
         
         # 提取问卷中的关键信息
         chief_complaint = "患者主诉不适"
