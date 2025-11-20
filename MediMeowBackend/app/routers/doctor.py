@@ -45,17 +45,19 @@ async def doctor_login(
         data={"sub": doctor.id, "type": "doctor"}
     )
     
-    # 医生登录返回格式（添加 token，扁平化结构，统一日期格式）
+    # 按 API 文档要求：data.token 和 data.doctor 嵌套结构
     return success_response(
         msg="登录成功",
         data={
             "token": access_token,
-            "id": doctor.id,
-            "username": doctor.username,
-            "department_name": department.department_name if department else None,
-            "created_at": doctor.created_at.strftime("%Y-%m-%d %H:%M:%S") if doctor.created_at else None,
-            "updated_at": doctor.updated_at.strftime("%Y-%m-%d %H:%M:%S") if doctor.updated_at else None,
-            "deleted_at": doctor.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if doctor.deleted_at else None
+            "doctor": {
+                "id": doctor.id,
+                "username": doctor.username,
+                "department_name": department.department_name if department else None,
+                "created_at": doctor.created_at.strftime("%Y-%m-%d %H:%M:%S") if doctor.created_at else None,
+                "updated_at": doctor.updated_at.strftime("%Y-%m-%d %H:%M:%S") if doctor.updated_at else None,
+                "deleted_at": doctor.deleted_at.strftime("%Y-%m-%d %H:%M:%S") if doctor.deleted_at else None
+            }
         }
     )
 
