@@ -1,0 +1,31 @@
+# config.py
+
+import os
+
+# ==========================
+# API 配置
+# =========================================================
+
+# GLM-4.1V-Thinking-Flash 配置
+os.environ["GLM_API_KEY"] = "YOUR_GLM_API_KEY_HERE"
+GLM_API_BASE = "https://open.bigmodel.cn/api/paas/v4/"
+
+# --- 词嵌入模型配置 ---
+BGE_EMBEDDING_MODEL_NAME = "BAAI/bge-small-zh"
+
+# ==========================
+# 路径配置
+# ==========================
+
+# 存放 TXT 病历文件的文件夹
+DOCS_DIRECTORY = "./medical_docs"
+
+# 向量数据库存储路径
+CHROMA_PERSIST_DIR = "./chroma_db_medical"
+
+# 默认测试图片路径
+DEFAULT_IMAGE_PATH = "./pic/tongue_sample.png"
+
+# LLM 参数
+MAX_TOKENS = 2048
+TEMPERATURE = 0.0
