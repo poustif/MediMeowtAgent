@@ -164,8 +164,5 @@ def process_medical_analysis(request: AnalysisRequest) -> Union[AnalysisReport, 
             return AnalysisReport(structured_report=final_report_text, status="SUCCESS")
         
     except Exception as e:
-        error_msg = f"系统内部错误，无法完成分析。详情: {type(e).__name__}: {str(e)}"
-        print(f"❌ AI分析过程发生异常: {error_msg}")
-        import traceback
-        print(f"🔍 详细堆栈:\n{traceback.format_exc()}")
+        error_msg = f"系统内部错误，无法完成分析。详情: {type(e).__name__}"
         return AnalysisReport(structured_report=error_msg, status="INTERNAL_ERROR")
