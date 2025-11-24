@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
-import jwt
-from jwt import PyJWTError as JWTError
+from jose import JWTError, jwt
 import bcrypt
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
