@@ -2,11 +2,14 @@
   <div class="diagnosis-report">
     <div class="header">
       <h2>提交诊断结果</h2>
-      <button @click="goBack" class="back-btn">返回病情摘要</button>
+      <button @click="goBack" class="back-btn">
+        <span class="btn-icon">←</span> 返回病情摘要
+      </button>
     </div>
 
     <!-- 加载状态（含错误提示） -->
     <div v-if="loading" class="loading">
+      <div class="loading-icon">🔄</div>
       <div v-if="errorMsg" class="error">{{ errorMsg }}</div>
       <div v-else>提交中...</div>
     </div>
@@ -14,28 +17,45 @@
     <!-- 表单区域（加载状态隐藏） -->
     <div v-else class="form-container">
       <!-- 错误提示 -->
-      <div v-if="errorMsg" class="error">{{ errorMsg }}</div>
+      <div v-if="errorMsg" class="error-alert">
+        <div class="error-alert-icon">⚠️</div>
+        <p>{{ errorMsg }}</p>
+      </div>
 
       <!-- 诊断内容表单 -->
       <form @submit.prevent="handleSubmit" class="report-form">
         <div class="form-item">
           <label class="form-label">待诊记录ID：</label>
-          <span class="record-id">{{ recordId }}</span> <!-- 展示当前记录ID，不可编辑 -->
+          <span class="record-id">
+            <span class="id-icon">🆔</span>
+            {{ recordId || '暂无' }}
+          </span> <!-- 展示当前记录ID，不可编辑 -->
         </div>
-        <div class="form-item">
-          <label class="form-label required">诊断内容：</label>
+        <div class="form-item required-item">
+          <label class="form-label">
+            诊断内容
+            <span class="required-mark">*</span>
+          </label>
           <textarea
             v-model="diagnosisText"
             class="form-textarea"
-            placeholder="请输入诊断结果（如：建议居家休息，按时服药，3天后复诊）"
-            rows="6"
+            placeholder="请输入详细诊断结果（如：1. 诊断结论：上呼吸道感染；2. 治疗建议：居家休息，口服阿莫西林胶囊，每日3次，每次1粒；3. 复诊提醒：3天后复诊，如症状加重请及时就医）"
+            rows="8"
             :disabled="submitting"
+            @input="clearFormError"
           ></textarea>
-          <div v-if="formError.text" class="form-error">{{ formError.text }}</div>
+          <div v-if="formError.text" class="form-error">
+            <span class="error-icon">❌</span>
+            {{ formError.text }}
+          </div>
+          <div class="textarea-hint">
+            提示：请包含诊断结论、治疗建议、复诊要求等关键信息，至少5个字符
+          </div>
         </div>
         <div class="form-actions">
           <button type="submit" class="submit-btn" :disabled="submitting">
-            提交诊断结果
+            <span class="btn-icon" v-if="submitting">🔄</span>
+            {{ submitting ? '提交中...' : '提交诊断结果' }}
           </button>
         </div>
       </form>
@@ -68,6 +88,13 @@ const diagnosisText = ref(''); // 诊断内容（必填）
  */
 const goBack = () => {
   router.push(`/doctor/summary/${recordId.value}`);
+};
+
+/**
+ * 清除表单校验错误
+ */
+const clearFormError = () => {
+  formError.value.text = '';
 };
 
 /**
@@ -171,142 +198,303 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 样式部分与原代码一致，无需修改 */
+/* 统一背景渐变，与其他页面风格保持一致 */
 .diagnosis-report {
-  padding: 24px;
+  padding: 40px 24px;
   max-width: 1200px;
   margin: 0 auto;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(135deg, #f5fafe 0%, #eaf6fa 100%);
+  min-height: calc(100vh - 80px);
 }
 
+/* 头部样式优化 */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
 }
 
+.header h2 {
+  font-size: 26px;
+  color: #1e293b;
+  font-weight: 600;
+  margin: 0;
+  position: relative;
+}
+
+/* 标题下划线装饰 */
+.header h2::after {
+  content: '';
+  display: block;
+  width: 70px;
+  height: 3px;
+  background-color: #3b82f6;
+  margin-top: 8px;
+  border-radius: 2px;
+}
+
+/* 返回按钮样式优化（与其他页面统一绿色系） */
 .back-btn {
-  padding: 8px 16px;
-  background-color: #666;
+  padding: 9px 18px;
+  background-color: #67c23a;
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .back-btn:hover {
-  background-color: #444;
+  background-color: #5daf34;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.3);
 }
 
-.loading {
-  text-align: center;
-  padding: 60px;
-  color: #666;
+.btn-icon {
   font-size: 16px;
 }
 
-.error {
+/* 加载状态样式优化 */
+.loading {
   text-align: center;
-  padding: 16px;
-  color: #f56c6c;
-  font-size: 14px;
-  margin-bottom: 16px;
-  background-color: #fff1f0;
-  border-radius: 4px;
+  padding: 80px;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
+.loading-icon {
+  font-size: 48px;
+  color: #3b82f6;
+  animation: spin 1.5s linear infinite;
+}
+
+.loading .error {
+  color: #ef4444;
+  font-size: 16px;
+  max-width: 500px;
+  line-height: 1.6;
+}
+
+/* 错误提示样式优化 */
+.error-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  color: #ef4444;
+  font-size: 14px;
+  background-color: #fff1f0;
+  border-radius: 8px;
+  border: 1px solid #fecdd3;
+  margin-bottom: 24px;
+}
+
+.error-alert-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.error-alert p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* 表单容器样式升级 */
 .form-container {
   background-color: #fff;
-  padding: 24px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f0f5ff;
 }
 
+/* 表单样式优化 */
 .report-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 28px;
 }
 
 .form-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+}
+
+.required-item .form-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.required-mark {
+  color: #ef4444;
+  font-size: 16px;
 }
 
 .form-label {
   font-weight: 600;
   color: #333;
-  font-size: 14px;
+  font-size: 15px;
 }
 
-.form-label.required::after {
-  content: '*';
-  color: #f56c6c;
-  margin-left: 4px;
-}
-
+/* 记录ID样式优化 */
 .record-id {
-  color: #666;
+  color: #64748b;
   font-size: 16px;
-  padding: 8px 12px;
-  background-color: #f9f9f9;
-  border-radius: 4px;
-  border: 1px solid #eee;
+  padding: 12px 16px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
 }
 
+.id-icon {
+  color: #3b82f6;
+  font-size: 18px;
+}
+
+/* 文本域样式优化 */
 .form-textarea {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   font-size: 16px;
-  color: #333;
+  color: #1e293b;
   resize: vertical;
-  transition: border-color 0.3s;
+  transition: all 0.3s ease;
+  background-color: #f8fafc;
+  min-height: 200px;
+  line-height: 1.8;
 }
 
 .form-textarea:focus {
   outline: none;
-  border-color: #409eff;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background-color: #fff;
 }
 
 .form-textarea:disabled {
-  background-color: #f9f9f9;
+  background-color: #f1f5f9;
+  color: #94a3b8;
   cursor: not-allowed;
+  border-color: #cbd5e1;
 }
 
+.form-textarea::placeholder {
+  color: #94a3b8;
+  font-size: 15px;
+}
+
+/* 表单校验错误提示样式 */
 .form-error {
-  color: #f56c6c;
+  color: #ef4444;
   font-size: 13px;
   margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
+.form-error .error-icon {
+  font-size: 14px;
+}
+
+/* 文本域提示样式 */
+.textarea-hint {
+  color: #94a3b8;
+  font-size: 13px;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+/* 按钮区域样式 */
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 8px;
+  margin-top: 16px;
 }
 
+/* 提交按钮样式优化 */
 .submit-btn {
-  padding: 10px 24px;
-  background-color: #409eff;
+  padding: 14px 32px;
+  background-color: #3b82f6;
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 16px;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.submit-btn:hover {
-  background-color: #3086d6;
+.submit-btn:hover:not(:disabled) {
+  background-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
 }
 
 .submit-btn:disabled {
-  background-color: #a0cfff;
+  background-color: #93c5fd;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+  .diagnosis-report {
+    padding: 20px 16px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .form-container {
+    padding: 24px 16px;
+  }
+
+  .record-id {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .submit-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 14px;
+  }
+
+  .loading {
+    padding: 40px 16px;
+  }
+}
+
+/* 加载动画 */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>

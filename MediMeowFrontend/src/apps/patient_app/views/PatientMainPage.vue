@@ -46,13 +46,6 @@
             </el-card>
           </el-col>
 
-          <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-card class="feature-card" shadow="hover" @click="goToConsultation">
-              <div class="card-icon"><el-icon><ChatDotRound /></el-icon></div>
-              <div class="card-title">在线咨询</div>
-              <div class="card-description">与医生进行在线交流</div>
-            </el-card>
-          </el-col>
         </el-row>
       </el-main>
     </el-container>
@@ -62,7 +55,7 @@
 <script setup>
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { HomeFilled, User, Tickets, Avatar, SwitchButton, ChatDotRound } from '@element-plus/icons-vue';
+import { HomeFilled, User, Tickets, Avatar, SwitchButton } from '@element-plus/icons-vue';
 
 const router = useRouter();
 
@@ -92,10 +85,6 @@ const goToMyPage = () => {
   router.push({ name: 'PatientMyPage' }); 
 };
 
-// 占位符函数，未来可实现
-const goToConsultation = () => {
-  ElMessage.info('在线咨询功能待开发...');
-};
 </script>
 
 <!-- style 部分保持不变 -->

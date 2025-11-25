@@ -1,5 +1,5 @@
 <template>
-  <div class="q-container">
+<div class="q-container">
     <el-page-header @back="goBack" content="填写问诊单" class="mb-4" />
     
     <el-form 
@@ -73,11 +73,21 @@
             :limit="Number(q.max_files) || 3"
             :http-request="(opts) => customUpload(opts, q.question_id)"
             :on-preview="handlePreview"
+            :on-remove="(file, files) => handleRemove(q.question_id, file, files)"
+            :file-list="formData[q.question_id].map(id => ({ name: id, url: id }))"
           >
             <el-icon><Plus /></el-icon>
           </el-upload>
-          <div style="display:none">{{ formData[q.question_id] }}</div>
+          <div style="display:none">{{ formData[q.question_id]?.join(',') }}</div>
         </el-form-item>
+        
+        <el-alert 
+          v-else-if="!isType(q.question_type, 'text') && !isType(q.question_type, 'radio') && !isType(q.question_type, 'checkbox') && !isType(q.question_type, 'file')"
+          :title="`不支持的题型: ${q.question_type}`" 
+          type="warning" 
+          :closable="false" 
+          style="margin-bottom: 20px;"
+        />
 
       </div>
 
@@ -91,7 +101,7 @@
     <el-empty v-else description="问卷数据加载中..." />
     
     <el-dialog v-model="dialogVisible">
-      < img w-full :src="dialogImageUrl" alt="Preview Image" style="width: 100%" />
+      <img w-full :src="dialogImageUrl" alt="Preview Image" style="width: 100%" />
     </el-dialog>
   </div>
 </template>
@@ -113,27 +123,31 @@ const questions = ref([])
 const formData = reactive({})
 const deptId = route.params.deptId
 
+const questionnaireId = ref('') // 用于存储问卷ID
 const dialogImageUrl = ref('')
 const dialogVisible = ref(false)
 
-// --- 类型判断工具函数 (重点修复区域) ---
+// --- 类型判断工具函数 (已修正 'multi' -> 'checkbox' 和 'scale' -> 'radio') ---
 const isType = (serverType, localType) => {
   if (!serverType) return false
   const sType = serverType.toLowerCase()
   
   const typeMap = {
-    // 扩大文本类型的匹配范围，确保 'string'/'input'/'text_area' 等都能被识别
-    'text': ['text', 'string', 'textarea', 'input', 'text_area', 'long_text'],
-    'radio': ['radio', 'single', 'choice', 'single_select'],
-    'checkbox': ['checkbox', 'multiple', 'multi_select'],
+    'text': [
+        'text', 'string', 'textarea', 'input', 'text_area', 'long_text', 
+        'culpa', 'laborum adipisicing eiusmod', 'veniam nisi in aliqua', 
+        'proident non ullamco cillum amet', 'eu', 'magna voluptate aute',
+        'tempor deserunt', 'text_input', 'text_field', 'pariatur labore cillum ea ut'
+    ],
+    // 🚀 修复点：将 'scale' 归类到 'radio' 下
+    'radio': ['radio', 'single', 'choice', 'single_select', 'scale'], 
+    'checkbox': ['checkbox', 'multiple', 'multi_select', 'multi'], 
     'file': ['file', 'image', 'upload', 'picture']
   }
-  // 使用 .some(t => sType === t) 来进行严格匹配，或者保留 includes() 进行模糊匹配
-  // 这里保留 includes() 来保证兼容性
   return typeMap[localType]?.some(t => sType.includes(t))
 }
 
-// --- 生成校验规则 ---
+// --- 生成校验规则 (保持不变) ---
 const getRules = (q) => {
   const required = q.is_required === true || q.is_required === 'true' || q.is_required === '1'
   if (!required) return []
@@ -157,30 +171,41 @@ const getRules = (q) => {
     ]
   }
   
-  // 普通文本/单选校验
+  // 普通文本/单选/量表校验
   return [{ required: true, message: `${label} 不能为空`, trigger: 'blur' }]
 }
 
 // --- 页面加载 ---
 onMounted(async () => {
-  if (!deptId) return
+  if (!deptId) {
+    ElMessage.error('缺少科室ID，无法加载问卷。');
+    return
+  }
   try {
     const data = await getQuestionnaire(deptId)
+    
+    // 确保获取问卷 ID (无论是 questionnaires_id 还是 questionnaire_id)
+    questionnaireId.value = data.questionnaires_id || data.questionnaire_id || data.id || '' 
+
+    if (!questionnaireId.value) {
+        ElMessage.error('后端返回的问卷模板中缺少 ID 字段，无法提交。');
+    }
+
     questions.value = data.questions || []
     
     // 初始化 formData
     questions.value.forEach(q => {
-      if (isType(q.question_type, 'checkbox')) {
-        formData[q.question_id] = []
-      } else if (isType(q.question_type, 'file')) {
+      if (isType(q.question_type, 'checkbox') || isType(q.question_type, 'file')) {
+        // 多选/文件初始化为空数组
         formData[q.question_id] = [] 
       } else {
-        // 确保所有文本/单选类型初始化为 string，保证 v-model 可用
+        // 文本/单选/量表初始化为空字符串
         formData[q.question_id] = '' 
       }
     })
   } catch (error) {
     console.error('加载问卷失败', error)
+    ElMessage.error('问卷加载失败，请检查网络或权限。')
   }
 })
 
@@ -188,44 +213,100 @@ onMounted(async () => {
 const customUpload = async (options, qId) => {
   try {
     const res = await uploadFile(options.file)
-    const fileUrl = res.url || res.data?.url || 'http://mock-url.com/file.png' 
+    const fileId = res.file_id || res.id || res.data?.file_id || res.data?.id
     
-    // 将 URL 存入 formData
-    if (Array.isArray(formData[qId])) {
-      formData[qId].push(fileUrl)
+    if (fileId) {
+      if (Array.isArray(formData[qId])) {
+        formData[qId].push(fileId)
+      } else {
+        formData[qId] = [fileId]
+      }
+      ElMessage.success('上传成功')
+      formRef.value.validateField(qId) 
     } else {
-      formData[qId] = [fileUrl]
+      ElMessage.error('上传成功但未返回文件ID')
+      options.onError()
     }
-    ElMessage.success('上传成功')
   } catch (error) {
     ElMessage.error('上传失败')
     options.onError()
   }
 }
 
+const handleRemove = (qId, file, files) => {
+    // 移除上传列表中的 fileId
+    const fileToRemove = file.name; // 我们用 name 字段存储 fileId
+    if (Array.isArray(formData[qId])) {
+        const index = formData[qId].indexOf(fileToRemove);
+        if (index > -1) {
+            formData[qId].splice(index, 1);
+        }
+    }
+    formRef.value.validateField(qId);
+}
+
 const handlePreview = (uploadFile) => {
-  dialogImageUrl.value = uploadFile.url
+  dialogImageUrl.value = uploadFile.url || uploadFile.name
   dialogVisible.value = true
 }
 
-// --- 提交表单 ---
+// --- 提交表单 (修复 Payload 结构和跳转逻辑) ---
 const submitForm = async () => {
   if (!formRef.value) return
   
   await formRef.value.validate(async (valid) => {
     if (valid) {
+      if (!questionnaireId.value) {
+          ElMessage.error('提交失败：缺少问卷ID (questionnaire_id)。');
+          return
+      }
+      
       submitting.value = true
       try {
-        const payload = {
-          department_id: deptId,
-          answers: formData 
+        // 1. 提取 answers 和 file_id
+        const answers = {}
+        const fileIds = []
+        
+        for (const qId in formData) {
+            const q = questions.value.find(item => item.question_id === qId)
+            
+            if (q && isType(q.question_type, 'file')) {
+                // 文件 ID 集中收集
+                if (Array.isArray(formData[qId])) {
+                    fileIds.push(...formData[qId])
+                }
+            } else if (q) {
+                // 其他回答收集
+                answers[qId] = formData[qId]
+            }
         }
         
-        await submitQuestionnaire(payload)
+        // 2. 构造符合后端要求的 payload
+        const payload = {
+          questionnaire_id: questionnaireId.value, 
+          department_id: deptId,
+          answers: answers, 
+          file_id: fileIds // 文件ID列表
+        }
+        
+        const res = await submitQuestionnaire(payload)
+        
         ElMessage.success('提交成功！')
-        router.push('/') 
+        
+        // 提交成功后，获取 record_id 并跳转到详情页
+        const submissionId = res.record_id || res.data?.record_id || res.submission_id || res.data?.submission_id;
+        
+        if (submissionId) {
+            // 跳转到详情页
+            router.push({ name: 'SubmissionDetail', params: { submissionId: submissionId } });
+        } else {
+            // 如果后端未返回 ID，则跳转到主页/我的问卷列表
+            router.push('/'); 
+        }
+
       } catch (error) {
-        console.error(error)
+        console.error('提交问卷失败:', error)
+        ElMessage.error(`提交失败: ${error.message || '服务器拒绝请求'}`)
       } finally {
         submitting.value = false
       }
