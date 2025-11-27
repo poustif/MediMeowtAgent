@@ -27,7 +27,7 @@ class QuestionnaireSubmission(Base):
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), nullable=False)
-    questionnaire_id = Column(String(36), nullable=False)
+    questionnaire_id = Column(String(64), nullable=False)
     department_id = Column(String(36), nullable=False)
     answers = Column(JSON, nullable=False)  # 答案数据
     file_ids = Column(JSON, nullable=True)  # 上传的文件ID列表

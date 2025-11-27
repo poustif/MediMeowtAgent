@@ -8,6 +8,7 @@ import json
 import grpc
 import base64
 import os
+import re
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -21,8 +22,6 @@ from .grpc_client import medical_ai_pb2_grpc as pb2_grpc
 
 class AIService:
     """AI服务类"""
-
-    ALLOWED_DEPARTMENTS = ["耳鼻喉科", "呼吸科"]
 
     @staticmethod
     def _get_question_label_mapping(questionnaire_id: str, db: Session) -> Dict[str, str]:
@@ -104,6 +103,47 @@ class AIService:
         return "患者描述了相关症状，请查看问卷详情"
 
     @staticmethod
+    def _parse_markdown_structured_report(markdown_text: str) -> Dict[str, Any]:
+        """解析Markdown格式的structured_report"""
+        key_info = {
+            "chief_complaint": "",
+            "key_symptoms": "",
+            "image_summary": "图片已分析",
+            "important_notes": "请查看详细报告",
+            "risk_level": "中等",
+            "suggested_department": ""
+        }
+
+        # 使用正则表达式匹配标题和内容
+        # 模式：### 数字. 【标题 (英文)】
+        pattern = r'### \d+\. 【([^】]+) \([^)]+\)】\s*\n(.*?)(?=### \d+\. 【|$)'
+        matches = re.findall(pattern, markdown_text, re.DOTALL)
+
+        # 标题映射到字段
+        title_mapping = {
+            "患者主诉": "chief_complaint",
+            "关键症状": "key_symptoms",
+            "影像总结": "image_summary",
+            "重要笔记": "important_notes",
+            "风险等级": "risk_level",
+            "建议科室": "suggested_department"
+        }
+
+        for title, content in matches:
+            content = content.strip()
+            if content:
+                for key, field in title_mapping.items():
+                    if key in title:
+                        key_info[field] = content
+                        break
+
+        # 如果未提取到chief_complaint，使用默认值
+        if not key_info["chief_complaint"]:
+            key_info["chief_complaint"] = "AI分析完成"
+
+        return key_info
+
+    @staticmethod
     def _call_grpc_ai_service(patient_text_data: str, image_base64: str, department_name: str) -> Dict[str, Any]:
         """调用gRPC AI服务"""
         try:
@@ -132,22 +172,20 @@ class AIService:
                                     "key_info": result_data.get("key_info", {}),
                                     "analysis_time": result_data.get("analysis_time", "0.5s"),
                                     "model_version": result_data.get("model_version", "v1.0"),
-                                    "status": "success"
+                                    "status": "success",
+                                    "structured_report": sync_report.structured_report
                                 }
                             except json.JSONDecodeError:
+                                # 尝试解析Markdown格式
+                                key_info = AIService._parse_markdown_structured_report(sync_report.structured_report)
+                                key_info["suggested_department"] = department_name
                                 return {
                                     "is_department": True,
-                                    "key_info": {
-                                        "chief_complaint": "AI分析完成",
-                                        "key_symptoms": sync_report.structured_report,
-                                        "image_summary": "图片已分析",
-                                        "important_notes": "请查看详细报告",
-                                        "risk_level": "中等",
-                                        "suggested_department": department_name
-                                    },
+                                    "key_info": key_info,
                                     "analysis_time": "0.5s",
                                     "model_version": "v1.0",
-                                    "status": "success"
+                                    "status": "success",
+                                    "structured_report": sync_report.structured_report
                                 }
                         else:
                             raise Exception(f"AI服务返回失败: {sync_report.message}")
@@ -206,10 +244,8 @@ class AIService:
             if not isinstance(questionnaire_id, str) or not isinstance(user_id, str) or not isinstance(department_id, str):
                 raise ValueError("数据类型错误：questionnaire_id, user_id, department_id必须是字符串")
 
-            # 获取科室名称并检查是否允许
+            # 获取科室名称
             department_name = AIService._get_department_name(department_id, db)
-            if department_name not in AIService.ALLOWED_DEPARTMENTS:
-                raise ValueError(f"不支持的科室：{department_name}。只支持：{', '.join(AIService.ALLOWED_DEPARTMENTS)}")
 
             # 获取问题映射和用户信息
             question_mapping = AIService._get_question_label_mapping(questionnaire_id, db)

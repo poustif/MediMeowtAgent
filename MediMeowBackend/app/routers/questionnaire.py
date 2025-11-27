@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, Query, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form, Query, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import json
@@ -73,13 +73,18 @@ async def import_questionnaire(
             question_text = str(row['问题标题']).strip()
             options_str = str(row['选项/范围(失效列)']).strip() if pd.notna(row['选项/范围(失效列)']) else ""
             is_required = str(row['是否必填']).strip() == "是"
-            
+
             # 第一行作为问卷标题（如果题号为空或特殊标记）
             if index == 0 and (not question_id or question_id.lower() in ['title', '标题']):
                 questionnaire_title = question_text
                 questionnaire_description = options_str if options_str else "通过Excel导入的问卷"
                 continue
-            
+
+            # 验证问题标题：如果为空或为'nan'，跳过并记录警告
+            if not question_text or question_text.lower() == 'nan':
+                print(f"跳过无效问题标题: '{question_text}', 题号: {question_id}")
+                continue
+
             # 构建问题对象
             question_obj = {
                 "id": question_id,
@@ -119,7 +124,7 @@ async def import_questionnaire(
                     question_obj["placeholder"] = options_str
             else:
                 # 未知类型，跳过或记录警告
-                print(f"⚠️ 未知题目类型: {question_type}, 题号: {question_id}")
+                print(f"未知题目类型: {question_type}, 题号: {question_id}")
                 continue
             
             questions.append(question_obj)
@@ -160,7 +165,7 @@ async def import_questionnaire(
         db.commit()
         db.refresh(new_questionnaire)
         
-        print(f"✅ 问卷导入成功 - ID: {new_questionnaire.id}, 版本: {new_version}, 问题数: {len(questions)}")
+        print(f"问卷导入成功 - ID: {new_questionnaire.id}, 版本: {new_version}, 问题数: {len(questions)}")
         
         return success_response(
             msg="问卷导入成功",
@@ -175,7 +180,7 @@ async def import_questionnaire(
     except pd.errors.EmptyDataError:
         return error_response(code="10014", msg="Excel文件为空")
     except Exception as e:
-        print(f"❌ 问卷导入失败: {str(e)}")
+        print(f"问卷导入失败: {str(e)}")
         import traceback
         traceback.print_exc()
         return error_response(code="10015", msg=f"问卷导入失败: {str(e)}")
@@ -269,7 +274,7 @@ async def get_questionnaire(
     db: Session = Depends(get_db)
 ):
     """获取问卷（根据科室ID）"""
-    print(f"📋 请求获取问卷 - 科室ID: {department_id}, 用户ID: {current_user['user_id']}")
+    print(f"请求获取问卷 - 科室ID: {department_id}, 用户ID: {current_user['user_id']}")
     
     # 查询该科室的激活问卷，优先返回 active 状态
     questionnaire = db.query(Questionnaire).filter(
@@ -283,16 +288,16 @@ async def get_questionnaire(
         department = db.query(Department).filter(
             Department.id == department_id
         ).first()
-        
+
         if not department:
-            print(f"❌ 科室不存在: {department_id}")
+            print(f"科室不存在: {department_id}")
             return error_response(code="10006", msg=f"科室不存在 (ID: {department_id})")
-        
+
         # 科室存在但没有问卷
-        print(f"❌ 科室 '{department.department_name}' 暂无可用问卷")
+        print(f"科室 '{department.department_name}' 暂无可用问卷")
         return error_response(code="10006", msg=f"该科室({department.department_name})暂无可用问卷")
     
-    print(f"✅ 找到问卷: {questionnaire.title} (ID: {questionnaire.id})")
+    print(f"找到问卷: {questionnaire.title} (ID: {questionnaire.id})")
     
     # 查询用户已保存的答案
     saved_submission = db.query(QuestionnaireSubmission).filter(
@@ -315,7 +320,7 @@ async def get_questionnaire(
         formatted_question = {
             "question_id": question.get("id", ""),              # 必需
             "question_type": question.get("type", "text"),      # 必需
-            "label": question.get("question", ""),              # 必需（题目标题）
+            "label": question.get("question", "未命名问题") or "未命名问题",  # 必需（题目标题），提供默认值
             "is_required": "是" if question.get("required", False) else "否",  # 必需
         }
         
@@ -333,7 +338,7 @@ async def get_questionnaire(
     
     return success_response(
         data={
-            "questionnaires_id": questionnaire.id,
+            "questionnaire_id": questionnaire.id,
             "questions": formatted_questions,
             "saved_answers": saved_answers
         }
@@ -351,6 +356,7 @@ class QuestionnaireSubmitRequest(BaseModel):
 
 @router.post("/submit")
 async def submit_questionnaire(
+    background_tasks: BackgroundTasks,
     body: QuestionnaireSubmitRequest = Body(...),
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -396,19 +402,36 @@ async def submit_questionnaire(
     db.commit()
     db.refresh(medical_record)
 
-    # 调用AI服务进行分析
-    try:
-        # 构建完整的问卷数据用于AI分析
-        questionnaire_data = {
-            'questionnaire_id': questionnaire_id,
-            'user_id': current_user["user_id"],
-            'department_id': department_id,
-            'answers': answers
-        }
+    # 构建完整的问卷数据用于AI分析
+    questionnaire_data = {
+        'questionnaire_id': questionnaire_id,
+        'user_id': current_user["user_id"],
+        'department_id': department_id,
+        'answers': answers
+    }
 
+    # 异步处理AI分析，避免阻塞响应
+    background_tasks.add_task(process_ai_analysis, submission.id, questionnaire_data, file_id, db)
+
+    return success_response(
+        msg="提交成功",
+        data={"record_id": medical_record.id}
+    )
+
+
+async def process_ai_analysis(submission_id, questionnaire_data, file_ids, db):
+    """后台异步处理AI分析"""
+    submission = db.query(QuestionnaireSubmission).filter(
+        QuestionnaireSubmission.id == submission_id
+    ).first()
+
+    if not submission:
+        return
+
+    try:
         ai_result = await AIService.analyze_questionnaire(
             questionnaire_data=questionnaire_data,
-            file_ids=file_id
+            file_ids=file_ids
         )
         # 保存完整AI分析结果
         submission.ai_result = ai_result
@@ -419,11 +442,6 @@ async def submit_questionnaire(
         import traceback
         traceback.print_exc()
         # AI 失败不影响提交
-
-    return success_response(
-        msg="提交成功",
-        data={"record_id": medical_record.id}
-    )
 
 
 @router.post("/upload")
@@ -469,29 +487,54 @@ async def get_questionnaire_record(
         MedicalRecord.id == record_id,
         MedicalRecord.deleted_at.is_(None)
     ).first()
-    
+
     if not record:
         return error_response(code="10005", msg="记录不存在")
-    
+
     # 获取问卷提交信息
     submission = db.query(QuestionnaireSubmission).filter(
         QuestionnaireSubmission.id == record.submission_id
     ).first()
-    
+
     status_map = {
         "waiting": "等待处理",
         "in_progress": "处理中",
         "completed": "已处理完"
     }
-    
+
     response_data = {
-        "status": status_map.get(record.status, "其他")
+        "status": status_map.get(record.status, "其他"),
+        "questions": []  # 始终返回questions数组，即使为空
     }
-    
+
     if submission:
         response_data["submission_id"] = submission.id
+
+        # 获取问卷信息以获取问题详情
+        questionnaire = db.query(Questionnaire).filter(
+            Questionnaire.id == submission.questionnaire_id
+        ).first()
+
+        # 添加患者回答详情
+        if questionnaire:
+            questions_with_answers = []
+            for question in questionnaire.questions:
+                question_id = question.get("id")
+                # 如果有答案，使用答案；否则为None
+                answer = submission.answers.get(question_id) if submission.answers else None
+
+                questions_with_answers.append({
+                    "question_id": question_id,
+                    "label": question.get("question", ""),
+                    "user_answer": answer
+                })
+
+            response_data["questions"] = questions_with_answers
+
         if submission.ai_result:
             # 返回完整AI分析结果
             response_data.update(submission.ai_result)
-    
+
     return success_response(data=response_data)
+
+
