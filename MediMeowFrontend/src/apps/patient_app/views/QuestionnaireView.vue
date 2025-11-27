@@ -1,4 +1,4 @@
-<template>
+声音嘘哑+喉痛<template>
 <div class="q-container">
     <el-page-header @back="goBack" content="填写问诊单" class="mb-4" />
     
@@ -12,7 +12,7 @@
         
         <div class="q-title">
           <span class="index">{{ index + 1 }}.</span>
-          <span class="label">{{ q.label }}</span>
+          <span class="label">{{ q.label && q.label !== 'nan' ? q.label : `问题 ${index + 1}` }}</span>
           <span v-if="q.is_required === 'true' || q.is_required === '1' || q.is_required === true" class="required">*</span>
         </div>
 
@@ -29,34 +29,34 @@
           />
         </el-form-item>
 
-        <el-form-item 
-          v-if="isType(q.question_type, 'radio')"
+        <el-form-item
+          v-if="isType(q.question_type, 'radio') && !isType(q.question_type, 'checkbox')"
           :prop="q.question_id"
           :rules="getRules(q)"
         >
           <el-radio-group v-model="formData[q.question_id]">
-            <el-radio 
-              v-for="opt in q.options" 
-              :key="opt" 
-              :label="opt"
+            <el-radio
+              v-for="(opt, index) in q.options"
+              :key="opt.value || opt || index"
+              :label="opt.value || opt || index"
             >
-              {{ opt }}
+              {{ getOptionLabel(opt, index) }}
             </el-radio>
           </el-radio-group>
         </el-form-item>
 
-        <el-form-item 
+        <el-form-item
           v-if="isType(q.question_type, 'checkbox')"
           :prop="q.question_id"
           :rules="getRules(q)"
         >
           <el-checkbox-group v-model="formData[q.question_id]">
-            <el-checkbox 
-              v-for="opt in q.options" 
-              :key="opt" 
-              :label="opt"
+            <el-checkbox
+              v-for="opt in q.options"
+              :key="opt.value || opt"
+              :label="opt.value || opt"
             >
-              {{ opt }}
+              {{ opt.text || opt }}
             </el-checkbox>
           </el-checkbox-group>
         </el-form-item>
@@ -131,20 +131,34 @@ const dialogVisible = ref(false)
 const isType = (serverType, localType) => {
   if (!serverType) return false
   const sType = serverType.toLowerCase()
-  
+
   const typeMap = {
     'text': [
-        'text', 'string', 'textarea', 'input', 'text_area', 'long_text', 
-        'culpa', 'laborum adipisicing eiusmod', 'veniam nisi in aliqua', 
+        'text', 'string', 'textarea', 'input', 'text_area', 'long_text',
+        'culpa', 'laborum adipisicing eiusmod', 'veniam nisi in aliqua',
         'proident non ullamco cillum amet', 'eu', 'magna voluptate aute',
         'tempor deserunt', 'text_input', 'text_field', 'pariatur labore cillum ea ut'
     ],
     // 🚀 修复点：将 'scale' 归类到 'radio' 下
-    'radio': ['radio', 'single', 'choice', 'single_select', 'scale'], 
-    'checkbox': ['checkbox', 'multiple', 'multi_select', 'multi'], 
+    'radio': ['radio', 'single', 'choice', 'single_select', 'scale', 'select'],
+    'checkbox': ['checkbox', 'multiple', 'multi_select', 'multi'],
     'file': ['file', 'image', 'upload', 'picture']
   }
   return typeMap[localType]?.some(t => sType.includes(t))
+}
+
+// --- 选项标签处理函数 ---
+const getOptionLabel = (opt, index) => {
+  if (typeof opt === 'string') {
+    // 字符串选项，直接显示
+    return opt
+  } else if (opt && typeof opt === 'object') {
+    // 对象选项，支持 value 和 text
+    return opt.text ? `${opt.value}. ${opt.text}` : (opt.value || opt.label || `选项${index + 1}`)
+  } else {
+    // 其他情况
+    return `选项${index + 1}`
+  }
 }
 
 // --- 生成校验规则 (保持不变) ---
@@ -183,15 +197,15 @@ onMounted(async () => {
   }
   try {
     const data = await getQuestionnaire(deptId)
-    
+
     // 确保获取问卷 ID (无论是 questionnaires_id 还是 questionnaire_id)
-    questionnaireId.value = data.questionnaires_id || data.questionnaire_id || data.id || '' 
+    questionnaireId.value = data.data.questionnaire_id || data.data.id || ''
 
     if (!questionnaireId.value) {
         ElMessage.error('后端返回的问卷模板中缺少 ID 字段，无法提交。');
     }
 
-    questions.value = data.questions || []
+    questions.value = data.data.questions || []
     
     // 初始化 formData
     questions.value.forEach(q => {

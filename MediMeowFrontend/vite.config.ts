@@ -19,7 +19,9 @@ export default defineConfig({
     proxy: {
       // 完全复用患者端的代理配置，一字不改
       '/api': {
-        target: 'http://124.221.70.136:11391',
+        //target: 'http://124.221.70.136:11391',
+        target: 'http://localhost:8001',
+        
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },

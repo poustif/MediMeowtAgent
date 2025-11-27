@@ -17,36 +17,11 @@ from zhipuGLM.service import (
 )
 
 class MedicalAIService(pb2_grpc.MedicalAIServiceServicer):
-    def __init__(self):
-        self.allowed_departments = ["耳鼻喉科", "呼吸科"]
-
     def ProcessMedicalAnalysis(self, request, context):
         patient_dept = request.patient_department
         print(f"📥 收到分析请求：科室={patient_dept}, 流式={request.stream}, 文本长度={len(request.patient_text_data)}, 图片Base64长度={len(request.image_base64)}")
-        
-        # 1. 科室打回逻辑
-        if patient_dept not in self.allowed_departments:
-            print(f"❌ 科室不匹配：{patient_dept} 不在允许列表 {self.allowed_departments} 中")
-            if request.stream:
-                # 流式：字符串→bytes（UTF-8编码）
-                error_msg = f"[ERROR] 科室不匹配：您选择的「{patient_dept}」无法处理，请重新挂号（仅支持{self.allowed_departments}）"
-                yield pb2.StreamChunk(
-                    chunk_data=error_msg.encode('utf-8'),  # 字符串→bytes
-                    is_end=True
-                )
-            else:
-                # 同步：Protobuf对象→bytes（序列化）
-                error_report = pb2.AnalysisReport(
-                    status="DEPARTMENT_MISMATCH",
-                    message=f"您选择的「{patient_dept}」无法处理，请重新挂号"
-                )
-                yield pb2.StreamChunk(
-                    chunk_data=error_report.SerializeToString(),  # 序列化→bytes
-                    is_end=True
-                )
-            return
 
-        # 2. 调用真实的AI服务
+        # 调用真实的AI服务
         try:
             print("🤖 正在调用AI分析服务...")
             # 构建服务请求

@@ -5,8 +5,8 @@ import { ElMessage } from 'element-plus'
 
 // 1. 创建 axios 实例
 const request = axios.create({
-  baseURL: '/api', // 使用代理路径，由 vite.config.js 转发
-  timeout: 5000
+  baseURL: '/api', // 使用代理路径，由 vite.config.js 转发
+  timeout: 120000
 })
 
 // 2. 请求拦截器：自动附加 Token
@@ -25,22 +25,47 @@ request.interceptors.request.use(
 
 // 3. 响应拦截器
 request.interceptors.response.use(
-  (res) => {
-    const { base, data } = res.data
-    
-    // 如果 data 存在，返回 data 部分
-    if (data) {
-      return data 
-    }
-    
-    // 统一处理后端错误码
-    if (base && base.code !== '200' && base.code !== '0' && base.code !== '10000') {
-      ElMessage.error(base.msg || '请求出错')
-      return Promise.reject(new Error(base.msg))
-    }
+  (res) => {
+    if (!res.data) {
+      return Promise.reject(new Error('Invalid response format'));
+    }
+    const { base, data } = res.data
 
-    return res.data
-  }, 
+    // 智能区分API需求
+    // 对于只需要数据的API（如DepartmentView），返回data字段
+    // 对于需要完整响应的API（如SubmissionDetailView），返回{base, data}
+    // 对于问诊详情API，返回data字段以匹配前端期望
+    if (res.config.url.includes('/departments')) {
+      // DepartmentView只需要数据
+      if (data) {
+        return data
+      }
+      // 如果没有data，返回空数组或其他默认值
+      return []
+    }
+
+    if (res.config.url.includes('/questionnaires/record/')) {
+      // SubmissionDetailView需要data字段
+      if (data) {
+        return data
+      }
+      return {}
+    }
+
+    // 其他API返回完整响应
+    // 如果 data 存在，返回完整响应
+    if (data) {
+      return res.data
+    }
+
+    // 统一处理后端错误码
+    if (base && base.code !== '200' && base.code !== '0' && base.code !== '10000') {
+      ElMessage.error(base.msg || '请求出错')
+      return Promise.reject(new Error(base.msg))
+    }
+
+    return res.data
+  },
   (err) => {
     console.error('API Error:', err)
     
