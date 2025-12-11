@@ -120,6 +120,7 @@ celerybeat.pid
 # Environments
 .env
 .env.*
+!.env.example
 .venv
 env/
 venv/
@@ -177,7 +178,6 @@ lerna-debug.log*
 # ===================================================================
 /data/
 /mysql-data/
-*.sql
 *.dump
 *.sql.gz
 *.dump.gz
@@ -205,3 +205,9 @@ ib_logfile*
 .DS_Store
 Thumbs.db
 
+# AI generated files
+MediMeowAI/zhipuGLM/pic
+MediMeowAI/zhipuGLM/config/config.yaml
+MediMeowAI/zhipuGLM/chroma_db_medical
+MediMeowAI/connect/pic
+MediMeowBackend/uploads
